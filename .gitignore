@@ -1,0 +1,10 @@
+**/node_modules
+frontend/dist
+backend/server
+backend/*.exe
+.DS_Store
+Thumbs.db
+*.log
+.claude/
+.env
+.env.local

@@ -1,0 +1,12 @@
+services:
+  cti-dashboard:
+    build: .
+    container_name: cti-dashboard
+    ports:
+      - "8090:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
