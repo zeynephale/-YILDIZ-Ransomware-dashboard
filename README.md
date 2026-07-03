@@ -1,177 +1,270 @@
 # CTI Dashboard (Ransomware Threat Intelligence)
 
-A full-stack Cyber Threat Intelligence dashboard for ransomware incidents. A **Go**
-backend loads and cleans the incident dataset (`data.csv`), computes the analytics
-and powers the IOC search; a **React + Vite** frontend renders the visualisations.
-The whole thing ships as a single Docker image.
+Bu proje, fidye yazılımı (ransomware) saldırılarını analiz etmek ve görselleştirmek için hazırlanmış bir Cyber Threat Intelligence dashboard uygulamasıdır. Backend tarafında Go kullanılarak `data.csv` dosyası okunur, temizlenir ve API üzerinden sunulur. Frontend tarafında ise React + Vite ile grafikler, tablolar ve analiz ekranları gösterilir.
 
-```
+Uygulama Docker ile tek komutla çalıştırılabilecek şekilde hazırlanmıştır.
+
+```txt
 ┌──────────────────────┐        /api/*          ┌────────────────────────┐
 │  React + Recharts UI  │  ───────────────────▶ │  Go API (net/http)      │
 │  (served as static)   │ ◀───────────────────  │  loads + cleans data.csv│
 └──────────────────────┘        JSON            └────────────────────────┘
 ```
 
-##  Türkçe Özet
+## Türkçe Özet
 
-Bu proje, fidye yazılımı (ransomware) saldırılarını görselleştiren bir **Siber Tehdit
-İstihbaratı (CTI) paneli**dir. Tüm veriler tek bir kaynaktan — `data.csv` dosyasından —
-beslenir; başka hiçbir dış veri kaynağı ya da API kullanılmaz.
+Bu proje, ransomware saldırılarına ait kayıtları tek bir panel üzerinden incelemek için geliştirilmiş bir CTI dashboard çalışmasıdır. Uygulamada ransomware grupları, hedef ülkeler, sektörler, saldırı vektörleri, MITRE ATT&CK teknikleri, severity değerleri ve IOC bilgileri analiz edilmektedir.
 
-### Veri kaynağı (`data.csv`)
+Tüm veriler proje içerisindeki `data.csv` dosyasından alınmaktadır. Harici bir API veya canlı veri kaynağı kullanılmamıştır.
 
-Veri seti, kamuya açık fidye yazılımı takip platformlarından derlenen gerçek saldırı
-kayıtlarından oluşturulmuştur. Bu tür kayıtların toplandığı başlıca kaynaklar:
+## Veri Kaynağı (`data.csv`)
 
-- **RansomDB** — ransomware kurban/sızıntı veritabanı
-- **Ransomware.live** — <https://www.ransomware.live>
-- **RansomLook** — <https://www.ransomlook.io>
-- **RansomFeed** — <https://ransomfeed.it>
-- **DarkFeed** — <https://darkfeed.io>
-- **Ransomwatch** — <https://github.com/joshhighet/ransomwatch>
+Veri seti, ransomware olaylarına yönelik açık kaynak araştırmalar, tehdit istihbaratı yayınları ve fidye yazılımı takip platformlarında yer alan olaylardan yararlanılarak hazırlanmıştır. Bazı kayıtlar ise proje gereksinimlerine uygun olacak şekilde düzenlenmiş ve simüle edilmiştir.
 
-> Veriler eğitim/gösterim amaçlıdır. Ham `data.csv` yalnızca birkaç kayıt için
-> gerçek IOC (IP/hash) içerdiğinden, IOC arama modülünün tüm veri seti üzerinde
-> çalışabilmesi için backend, IOC'si olmayan kayıtlara **deterministik türetilmiş**
-> örnek IP/hash üretir (ayrıntı aşağıdaki *A note on IOCs* bölümünde).
+Veri hazırlanırken faydalanılan başlıca kaynak türleri:
+
+- Ransomware olay analizleri
+- Siber güvenlik blogları
+- Tehdit istihbaratı raporları
+- Ransomware takip platformları
+- Açık kaynak olay kayıtları
+
+Örnek kaynaklar:
+
+- Ransomware.live
+- RansomLook
+- RansomFeed
+- DarkFeed
+- Ransomwatch
+
+> Not: Veri seti eğitim ve proje gösterimi amacıyla hazırlanmıştır. `data.csv` içerisinde bazı kayıtlar gerçek IOC değeri içerirken, IOC değeri bulunmayan kayıtlar için backend tarafında deterministik olarak örnek IP/hash üretilebilmektedir. Bu değerler gerçek tehdit altyapısı olarak değerlendirilmemelidir.
 
 `data.csv` sütunları:
 
 | Sütun | Açıklama |
-|-------|----------|
-| `date` | Saldırı tarihi (YYYY-AA-GG) |
-| `ransomware_group` | Fidye yazılımı grubu / tehdit aktörü |
-| `country` | Hedef ülke — `Ülke (XX)` biçiminde (ör. `Turkey (TR)`) |
-| `target_sector` | Hedef sektör (serbest metin, backend'de gruplanır) |
-| `attack_vector` | İlk erişim / saldırı vektörü |
-| `technique` | MITRE ATT&CK tekniği (ör. `T1486 - Data Encrypted for Impact`) |
-| `Severity` | Önem derecesi (1–10) |
-| `ioc_ip`, `ioc_hash` | İsteğe bağlı gerçek IOC değerleri |
+|------|----------|
+| `date` | Saldırı tarihi |
+| `ransomware_group` | Ransomware grubu / tehdit aktörü |
+| `country` | Hedef ülke |
+| `target_sector` | Hedef sektör |
+| `attack_vector` | Saldırı vektörü |
+| `technique` | MITRE ATT&CK tekniği |
+| `Severity` | Önem derecesi |
+| `ioc_ip` | Opsiyonel IP IOC değeri |
+| `ioc_hash` | Opsiyonel hash IOC değeri |
 
-###  Genel işleyiş
+## Genel İşleyiş
 
-1. **Yükleme & temizleme** — Go backend açılışta `data.csv`'yi okur; ülke adını/ISO
-   kodunu ayırır, MITRE tekniği kimliğini çıkarır ve alanları normalize eder.
-2. **Normalizasyon** — ~90 farklı sektör etiketi **≤16 kategoriye** indirilir, dağınık
-   saldırı vektörleri sadeleştirilir, grup adı varyantları tek isimde birleştirilir
-   (ör. `The Gentlemen` → `CMD`).
-3. **API** — temizlenmiş kayıtlar ve hesaplanan istatistikler `/api/*` uçlarından
-   JSON olarak sunulur.
-4. **Arayüz** — React + Recharts paneli bu veriyi grafiklerle (dağılımlar, dünya
-   haritası, zaman çizelgesi, IOC arama) gösterir.
+1. Go backend uygulama açılırken `data.csv` dosyasını okur.
+2. Ülke, sektör, saldırı vektörü, ransomware grup adı ve MITRE teknik bilgileri temizlenir.
+3. Temizlenmiş kayıtlar ve hesaplanan istatistikler `/api/*` endpointleri üzerinden JSON olarak sunulur.
+4. React arayüzü bu verileri alarak dashboard ekranlarında grafik ve tablolarla gösterir.
+5. IOC Search ekranında kullanıcı IP veya hash değeri girerek ilgili kayıtları arayabilir.
 
-###  Çalıştırma (özet)
+## Özellikler
 
-```bash
-docker compose up --build      # → http://localhost:8090
+### Genel Dashboard
+
+Ana ekranda veri setine ait temel özet bilgiler yer almaktadır. Toplam saldırı sayısı, ortalama severity, aktif ransomware grupları, sektör dağılımları ve güncel kayıtlar bu alanda gösterilir.
+
+### Ransomware Grup Analizi
+
+Threat Groups ekranında ransomware grupları saldırı sayısı, ortalama severity ve hedef dağılımlarına göre incelenebilir. Her grup için profil kartları ve detay bilgileri gösterilmektedir.
+
+### Ülke ve Sektör Analizi
+
+Saldırıların hangi ülke ve sektörlerde yoğunlaştığı grafikler üzerinden gösterilir. Sektörler daha okunabilir olması için belirli ana kategoriler altında gruplanmıştır.
+
+### Zaman Bazlı Analiz
+
+Timeline ekranında saldırıların zamana göre dağılımı gösterilmektedir. Aylık saldırı hacmi, severity trendi ve dönemsel değişimler bu bölümden takip edilebilir.
+
+### MITRE ATT&CK Teknik Analizi
+
+Saldırı kayıtlarında yer alan MITRE ATT&CK teknikleri ayrıştırılarak grafiklerde gösterilir. Böylece en sık kullanılan tekniklerin hangi alanlarda yoğunlaştığı görülebilir.
+
+### IOC Search
+
+Kullanıcı IP adresi veya hash değeri girerek veri setinde arama yapabilir. Eşleşme bulunursa ilgili saldırı kaydı, ransomware grubu ve severity bilgisi listelenir.
+
+## Eklenen Yeni Özellikler
+
+### Threat Group Comparison
+
+Projeye ek olarak iki farklı ransomware grubunu karşılaştırmaya yarayan bir Compare modülü eklenmiştir.
+
+Bu ekranda kullanıcı iki ransomware grubunu seçerek aşağıdaki metrikleri yan yana inceleyebilir:
+
+- Toplam saldırı sayısı
+- Ortalama severity
+- Kritik olay sayısı
+- Kritik olay oranı
+- Hedeflenen ülke sayısı
+- Hedeflenen sektör sayısı
+- En çok hedeflenen ülke
+- En çok hedeflenen sektör
+- En sık kullanılan saldırı vektörü
+- En sık kullanılan MITRE ATT&CK tekniği
+- Veri setindeki ilk ve son görülme tarihleri
+
+Ayrıca iki grup arasındaki ortak hedef ülkeler, ortak sektörler ve ortak kullanılan MITRE teknikleri de gösterilmektedir. Bu sayede ransomware gruplarının davranışları sadece ayrı ayrı değil, karşılaştırmalı olarak da analiz edilebilmektedir.
+
+Compare ekranı frontend tarafında `/api/records` endpointinden gelen veriyi kullanarak hesaplama yapmaktadır. Bunun yanında backend tarafında aynı amaçla kullanılabilecek ayrı bir karşılaştırma endpointi de eklenmiştir.
+
+```txt
+GET /api/threat-groups/compare?groupA=CMD&groupB=Qilin
 ```
 
-Yerel geliştirme için aşağıdaki *Running → Locally* bölümüne bakın.
+### Threat Actor Badge Sistemi
 
----
+Gerçek ransomware grup logoları kullanılmamıştır. Bunun yerine her tehdit grubu için grup adından otomatik olarak baş harf tabanlı badge oluşturulmaktadır.
 
-## Features
+Örnekler:
 
-**Data analysis** (all derived from `data.csv`)
-- Ransomware group distribution
-- Country-based attack distribution
-- Sector-based attack distribution (grouped into broad verticals)
-- Time-based attack trends (monthly volume, quarterly totals, per-actor timelines)
-- Average severity — overall, per group, per sector, per month
+| Grup | Badge |
+|------|-------|
+| Qilin | Q |
+| The Gentlemen | TG |
+| Space Bears | SB |
+| DragonForce | DF |
+| Brain Cipher | BC |
+| CMD | CMD |
 
-**Dashboard** — five screens with 15+ visualisations
-- **Overview** — headline metrics, group distribution, sector distribution,
-  severity-band donut, top MITRE ATT&CK techniques, recent incidents table
-- **Threat Groups** — attack frequency, mean severity and a profile card per actor
-- **Geo & Sectors** — top targeted countries, attack vectors, MITRE technique
-  frequency, sector risk analysis and a per-sector threat matrix
-- **Timeline** — monthly volume, severity trend, quarterly totals, top-actor lines
-- **IOC Search** — search by IP or file hash
+Bu yöntemle arayüzde görsel bütünlük sağlanmış ve dış kaynaklı logo kullanımına ihtiyaç duyulmamıştır.
 
-**IOC search module** — for a given IP or hash, lists the correlated ransomware
-group, the matching incident records and their severity, with a small result summary.
+### Grup Adı Normalizasyonu
 
-### Extra touches
-- Group-name normalisation (`The Gentlemen`→`CMD`, `3am`/`3AM`,
-  `Auditteam`/`Audit Team`, `Braincipher`/`Brain Cipher`, … folded into one
-  canonical actor).
-- Attack-vector tidying — the free-text vectors (blanks, stray dashes and many
-  near-duplicate phrasings) are folded into a clean canonical set.
-- Sector bucketing — the ~90 granular sector labels in the source are mapped into
-  ≤16 readable verticals for clean charts, while the original label is preserved
-  (`sector_detail`).
-- Country name/ISO-code split (`United States (US)` → `United States` + `US`).
-- MITRE ATT&CK technique id extracted from each record.
-- Animated boot sequence, live status pill, severity-coloured badges throughout.
+Veri setindeki bazı ransomware grup isimleri farklı yazım biçimleriyle gelebilmektedir. Backend ve frontend tarafında bu isimler daha tutarlı görünmesi için normalize edilmiştir.
 
-## Running
+Örnekler:
 
-### With Docker (recommended)
+| Gelen Değer | Gösterilen Değer |
+|------------|------------------|
+| `3am`, `3AM` | `3AM` |
+| `Auditteam`, `Audit Team` | `Audit Team` |
+| `Braincipher`, `Brain Cipher` | `Brain Cipher` |
+| `Ransomhouse`, `RansomHouse` | `RansomHouse` |
+| `Shinyhunters`, `ShinyHunters` | `ShinyHunters` |
+| `Play (PlayCrypt)` | `Play` |
+| `Cmdorganization`, `CMD` | `CMD` |
+
+> `The Gentlemen` ayrı bir tehdit grubu olarak tutulmaktadır ve `CMD` ile birleştirilmemektedir.
+
+## API Endpointleri
+
+| Method | Endpoint | Açıklama |
+|--------|----------|----------|
+| GET | `/api/health` | API durumu ve kayıt sayısı |
+| GET | `/api/records` | Temizlenmiş tüm saldırı kayıtları |
+| GET | `/api/overview` | Genel özet metrikleri |
+| GET | `/api/stats/groups` | Ransomware grubu istatistikleri |
+| GET | `/api/stats/countries` | Ülke bazlı saldırı dağılımı |
+| GET | `/api/stats/sectors` | Sektör bazlı saldırı dağılımı |
+| GET | `/api/stats/vectors` | Saldırı vektörü dağılımı |
+| GET | `/api/stats/techniques` | MITRE ATT&CK teknik dağılımı |
+| GET | `/api/stats/timeline` | Zaman bazlı saldırı trendleri |
+| GET | `/api/stats/severity` | Severity histogramı |
+| GET | `/api/ioc/search?q=` | IP veya hash ile IOC arama |
+| GET | `/api/ioc/samples` | Örnek IOC değerleri |
+| GET | `/api/threat-groups/compare` | İki ransomware grubunu karşılaştırma endpointi |
+
+## Docker ile Çalıştırma
+
+Projeyi Docker ile çalıştırmak için proje ana dizininde şu komut kullanılabilir:
 
 ```bash
 docker compose up --build
 ```
 
-Then open **http://localhost:8090** (compose maps host `8090` → container `8080`).
-The container serves both the API and the UI.
+Ardından tarayıcıdan şu adres açılır:
 
-### Locally (for development)
+```txt
+http://localhost:8090
+```
 
-Two terminals:
+Uygulamayı durdurmak için terminalde:
 
 ```bash
-# 1) API — reads the CSV in the repo root
-cd backend
-DATA_CSV=../data.csv go run .        # listens on :8080
+CTRL + C
+```
 
-# 2) UI — Vite dev server proxies /api → :8080
+Tamamen kapatmak için:
+
+```bash
+docker compose down
+```
+
+## Local Geliştirme
+
+Backend için:
+
+```bash
+cd backend
+DATA_CSV=../data.csv go run .
+```
+
+Windows PowerShell kullanılıyorsa:
+
+```powershell
+cd backend
+$env:DATA_CSV="../data.csv"
+go run .
+```
+
+Frontend için ayrı bir terminalde:
+
+```bash
 cd frontend
 npm install
-npm run dev                          # opens on :5173
+npm run dev
 ```
 
-## API reference
+Frontend geliştirme ortamında varsayılan olarak şu adreste çalışır:
 
-| Method | Endpoint                | Description                                   |
-|--------|-------------------------|-----------------------------------------------|
-| GET    | `/api/health`           | Liveness + record count                       |
-| GET    | `/api/records`          | All cleaned incident records                  |
-| GET    | `/api/overview`         | Headline summary metrics                      |
-| GET    | `/api/stats/groups`     | Per-group profile (count, avg severity, …)    |
-| GET    | `/api/stats/countries`  | Top 15 targeted countries                     |
-| GET    | `/api/stats/sectors`    | Sector distribution                           |
-| GET    | `/api/stats/vectors`    | Attack-vector distribution                    |
-| GET    | `/api/stats/techniques` | MITRE ATT&CK technique distribution           |
-| GET    | `/api/stats/timeline`   | Monthly attacks + average severity            |
-| GET    | `/api/stats/severity`   | Severity histogram (1–10)                     |
-| GET    | `/api/ioc/search?q=`    | IOC search by IP or hash                      |
-| GET    | `/api/ioc/samples`      | Example indicators for the IOC reference table |
-
-## Project layout
-
+```txt
+http://localhost:5173
 ```
+
+## Proje Yapısı
+
+```txt
 .
-├── data.csv                 # source dataset (single source of truth)
-├── Dockerfile               # multi-stage: build UI → build API → runtime
+├── data.csv
+├── Dockerfile
 ├── docker-compose.yml
-├── backend/                 # Go API (standard library only)
+├── backend/
 │   ├── main.go
 │   └── internal/
-│       ├── cti/             # dataset loading, cleaning, analytics, IOC logic
-│       └── api/             # HTTP handlers + static serving
-└── frontend/                # React + Vite frontend
-    ├── public/              # static assets (logo, boot mask)
+│       ├── api/
+│       └── cti/
+└── frontend/
+    ├── public/
     └── src/
-        ├── assets/icons/    # processed 3D stat-card icons
-        ├── components/      # dashboard tabs & charts
-        └── data/            # API access layer + client-side analytics helpers
+        ├── components/
+        ├── context/
+        ├── data/
+        ├── utils/
+        └── assets/
 ```
 
-## A note on IOCs
+## Proje Kapsamında Hazırlananlar
 
-The source `data.csv` publishes real indicators for only a handful of incidents.
-So that the IOC search module is demonstrable across the whole dataset, the backend
-**derives a stable IP and file hash for records that have none** — deterministically,
-from each record's own fields (see `backend/internal/cti/ioc.go`). Genuine indicators
-present in the CSV are always kept as-is. These generated values are for demonstration
-only and are not real threat infrastructure.
+- Çalışan ransomware CTI dashboard uygulaması
+- En az 100 kayıt içeren veri seti
+- Genel özet ekranı
+- Ransomware grup dağılımı
+- Ülke ve sektör bazlı analizler
+- Zaman bazlı saldırı trendleri
+- Ortalama severity hesaplamaları
+- MITRE ATT&CK teknik analizi
+- IOC arama modülü
+- Threat Group Comparison modülü
+- Threat Actor Badge sistemi
+- Docker ile çalıştırılabilir proje yapısı
+- Kaynak kodlar
+
+## IOC Notu
+
+`data.csv` dosyasında bazı olaylar gerçek IOC bilgisi içerirken, bazı kayıtlarda IOC alanları boş bırakılmıştır. IOC Search modülünün test edilebilir olması için backend, IOC değeri bulunmayan kayıtlar için deterministik örnek IP/hash üretebilir.
+
+Bu üretilen değerler gerçek zararlı altyapı ya da gerçek tehdit göstergesi olarak değerlendirilmemelidir. Sadece dashboard üzerinde arama özelliğini göstermek amacıyla kullanılmaktadır.
