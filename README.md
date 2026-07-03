@@ -37,8 +37,6 @@ Veri hazırlanırken faydalanılan başlıca kaynak türleri:
 - DarkFeed
 - Ransomwatch
 
-> Not: Veri seti eğitim ve proje gösterimi amacıyla hazırlanmıştır. `data.csv` içerisinde bazı kayıtlar gerçek IOC değeri içerirken, IOC değeri bulunmayan kayıtlar için backend tarafında deterministik olarak örnek IP/hash üretilebilmektedir. Bu değerler gerçek tehdit altyapısı olarak değerlendirilmemelidir.
-
 `data.csv` sütunları:
 
 | Sütun | Açıklama |
@@ -263,8 +261,3 @@ http://localhost:5173
 - Docker ile çalıştırılabilir proje yapısı
 - Kaynak kodlar
 
-## IOC Notu
-
-`data.csv` dosyasında bazı olaylar gerçek IOC bilgisi içerirken, bazı kayıtlarda IOC alanları boş bırakılmıştır. IOC Search modülünün test edilebilir olması için backend, IOC değeri bulunmayan kayıtlar için deterministik örnek IP/hash üretebilir.
-
-Bu üretilen değerler gerçek zararlı altyapı ya da gerçek tehdit göstergesi olarak değerlendirilmemelidir. Sadece dashboard üzerinde arama özelliğini göstermek amacıyla kullanılmaktadır.
