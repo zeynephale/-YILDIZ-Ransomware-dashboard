@@ -12,13 +12,13 @@ The whole thing ships as a single Docker image.
 └──────────────────────┘        JSON            └────────────────────────┘
 ```
 
-## 🇹🇷 Türkçe Özet
+##  Türkçe Özet
 
 Bu proje, fidye yazılımı (ransomware) saldırılarını görselleştiren bir **Siber Tehdit
 İstihbaratı (CTI) paneli**dir. Tüm veriler tek bir kaynaktan — `data.csv` dosyasından —
 beslenir; başka hiçbir dış veri kaynağı ya da API kullanılmaz.
 
-### 📊 Veri kaynağı (`data.csv`)
+### Veri kaynağı (`data.csv`)
 
 Veri seti, kamuya açık fidye yazılımı takip platformlarından derlenen gerçek saldırı
 kayıtlarından oluşturulmuştur. Bu tür kayıtların toplandığı başlıca kaynaklar:
@@ -30,7 +30,7 @@ kayıtlarından oluşturulmuştur. Bu tür kayıtların toplandığı başlıca 
 - **DarkFeed** — <https://darkfeed.io>
 - **Ransomwatch** — <https://github.com/joshhighet/ransomwatch>
 
-> ℹ️ Veriler eğitim/gösterim amaçlıdır. Ham `data.csv` yalnızca birkaç kayıt için
+> Veriler eğitim/gösterim amaçlıdır. Ham `data.csv` yalnızca birkaç kayıt için
 > gerçek IOC (IP/hash) içerdiğinden, IOC arama modülünün tüm veri seti üzerinde
 > çalışabilmesi için backend, IOC'si olmayan kayıtlara **deterministik türetilmiş**
 > örnek IP/hash üretir (ayrıntı aşağıdaki *A note on IOCs* bölümünde).
@@ -48,7 +48,7 @@ kayıtlarından oluşturulmuştur. Bu tür kayıtların toplandığı başlıca 
 | `Severity` | Önem derecesi (1–10) |
 | `ioc_ip`, `ioc_hash` | İsteğe bağlı gerçek IOC değerleri |
 
-### ⚙️ Genel işleyiş
+###  Genel işleyiş
 
 1. **Yükleme & temizleme** — Go backend açılışta `data.csv`'yi okur; ülke adını/ISO
    kodunu ayırır, MITRE tekniği kimliğini çıkarır ve alanları normalize eder.
@@ -60,7 +60,7 @@ kayıtlarından oluşturulmuştur. Bu tür kayıtların toplandığı başlıca 
 4. **Arayüz** — React + Recharts paneli bu veriyi grafiklerle (dağılımlar, dünya
    haritası, zaman çizelgesi, IOC arama) gösterir.
 
-### ▶️ Çalıştırma (özet)
+###  Çalıştırma (özet)
 
 ```bash
 docker compose up --build      # → http://localhost:8090
